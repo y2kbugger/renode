@@ -20,6 +20,7 @@ using Antmicro.Renode.PlatformDescription.Syntax;
 using Antmicro.Renode.Utilities;
 using Antmicro.Renode.Utilities.Collections;
 using Sprache;
+using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.PlatformDescription
 {

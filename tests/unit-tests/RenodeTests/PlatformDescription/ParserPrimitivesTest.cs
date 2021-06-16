@@ -11,6 +11,7 @@ using Antmicro.Renode.PlatformDescription;
 using Antmicro.Renode.PlatformDescription.Syntax;
 using NUnit.Framework;
 using Sprache;
+using Range = Antmicro.Renode.Core.Range;
 
 namespace Antmicro.Renode.UnitTests.PlatformDescription
 {
