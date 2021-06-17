@@ -15,6 +15,8 @@ NIGHTLY=false
 PORTABLE=false
 HEADLESS=false
 SKIP_FETCH=false
+NET=false
+TFM="net5.0"
 PARAMS=()
 CUSTOM_PROP=
 
@@ -32,6 +34,7 @@ function print_help() {
   echo "-o             custom output directory"
   echo "--skip-fetch   skip fetching submodules and additional resources"
   echo "--no-gui       build with GUI disabled"
+  echo "--net          build with dotnet"
 }
 
 while getopts "cdvpnstbo:-:" opt
@@ -73,6 +76,10 @@ do
           ;;
         "skip-fetch")
           SKIP_FETCH=true
+          ;;
+        "net")
+          NET=true
+          PARAMS+=(/p:NET=true)
           ;;
         *)
           print_help
@@ -142,6 +149,7 @@ then
 elif $ON_WINDOWS
 then
     BUILD_TARGET=Windows
+    TFM="net5.0-windows10.0.17763.0"
 else
     BUILD_TARGET=Mono
 fi
@@ -159,7 +167,7 @@ then
 fi
 
 # Verify Mono and mcs version on Linux and macOS
-if ! $ON_WINDOWS
+if ! $ON_WINDOWS && ! $NET
 then
     if ! [ -x "$(command -v mcs)" ]
     then
@@ -189,19 +197,32 @@ fi
 cp "$PROP_FILE" "$OUTPUT_DIRECTORY/properties.csproj"
 
 # Build CCTask in Release configuration
-$CS_COMPILER /p:Configuration=Release "`get_path \"$ROOT_PATH/lib/cctask/CCTask.sln\"`" > /dev/null
+if $NET
+then
+  dotnet build /p:Configuration=Release /p:NET=true "`get_path \"$ROOT_PATH/lib/cctask/CCTask.sln\"`" > /dev/null
+else
+  $CS_COMPILER /p:Configuration=Release "`get_path \"$ROOT_PATH/lib/cctask/CCTask.sln\"`" > /dev/null
+fi
 
 # clean instead of building
 if $CLEAN
 then
-    PARAMS+=(/t:Clean)
+    if ! $NET
+    then
+      PARAMS+=(/t:Clean)
+    fi
     for conf in Debug Release
     do
-        for build_target in Windows Mono Headless
-        do
+      for build_target in Windows Mono Headless
+      do
+        if $NET
+        then
+            dotnet clean "${PARAMS[@]}" /p:Configuration=${conf}${build_target} "$TARGET"
+        else
             $CS_COMPILER "${PARAMS[@]}" /p:Configuration=${conf}${build_target} "$TARGET"
-        done
-        rm -fr $OUTPUT_DIRECTORY/bin/$conf
+        fi
+      done
+      rm -fr $OUTPUT_DIRECTORY/bin/$conf
     done
     exit 0
 fi
@@ -212,12 +233,18 @@ pushd "$ROOT_PATH/tools/building" > /dev/null
 popd > /dev/null
 
 PARAMS+=(/p:Configuration=${CONFIGURATION}${BUILD_TARGET} /p:GenerateFullPaths=true)
-
 # build
-$CS_COMPILER "${PARAMS[@]}" "$TARGET"
 
-# copy llvm library
-cp src/Infrastructure/src/Emulator/Peripherals/bin/$CONFIGURATION/libllvm-disas.* output/bin/$CONFIGURATION
+if $NET
+then
+  dotnet build "${PARAMS[@]}" "$TARGET"
+  # copy llvm library
+  cp src/Infrastructure/src/Emulator/Peripherals/bin/$CONFIGURATION/$TFM/libllvm-disas.* output/bin/$CONFIGURATION/$TFM
+else
+  $CS_COMPILER "${PARAMS[@]}" "$TARGET"
+  # copy llvm library
+  cp src/Infrastructure/src/Emulator/Peripherals/bin/$CONFIGURATION/libllvm-disas.* output/bin/$CONFIGURATION
+fi
 
 # build packages after successful compilation
 params=""
@@ -239,7 +266,7 @@ then
     echo "Renode built to $EXPORT_DIRECTORY"
 fi
 
-if $PACKAGES
+if $PACKAGES && ! $NET
 then
     if $NIGHTLY
     then
@@ -250,7 +277,7 @@ then
 fi
 
 
-if $PORTABLE
+if $PORTABLE && ! $NET
 then
     if $ON_LINUX
     then
