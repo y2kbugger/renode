@@ -11,6 +11,8 @@ OUTPUT_PATH="$ROOT_PATH/output/bin"
 
 TARGET="Release"
 QUIET=false
+NET=false
+TFM="net5.0"
 
 PARAMS=()
 for ARG in "$@"
@@ -25,17 +27,20 @@ do
     elif [ "$ARG" == "-q" ]
     then
         QUIET=true
+    elif [ "$ARG" == "--net" ]
+    then
+        NET=true
     else
         PARAMS+=("$ARG")
     fi
 done
 
-if ! $ON_WINDOWS
+if ! $ON_WINDOWS && ! $NET
 then
     verify_mono_version
 fi
 
-if ${REMOTE:-false}
+if ${REMOTE:-false} && ! $NET
 then
     LAUNCHER="$LAUNCHER --debugger-agent=transport=dt_socket,address=0.0.0.0:${REMOTE_PORT:=9876},server=y"
     echo "Waiting for a debugger at port $REMOTE_PORT..."
@@ -46,9 +51,22 @@ then
     exec 2>/dev/null
 fi
 
-if $ON_WINDOWS
+if $NET
 then
-    "${OUTPUT_PATH}/${TARGET}/Renode.exe" "${PARAMS[@]:-}"
+    if $ON_WINDOWS
+    then
+        TFM="net5.0-windows10.0.17763.0"
+        "${OUTPUT_PATH}/${TARGET}/${TFM}/Renode.exe" "${PARAMS[@]:-}"
+    else
+        dotnet "${OUTPUT_PATH}/${TARGET}/${TFM}/Renode.dll" "${PARAMS[@]:-}"
+    fi
 else
-    $LAUNCHER "${OUTPUT_PATH}/${TARGET}/Renode.exe" "${PARAMS[@]:-}"
+    if $ON_WINDOWS
+    then
+        "${OUTPUT_PATH}/${TARGET}/Renode.exe" "${PARAMS[@]:-}"
+    else
+        $LAUNCHER "${OUTPUT_PATH}/${TARGET}/Renode.exe" "${PARAMS[@]:-}"
+    fi
 fi
+
+

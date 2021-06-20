@@ -283,8 +283,16 @@ class RobotTestSuite(object):
             self.remote_server_directory = options.remote_server_full_directory
         else:
             self.remote_server_directory = os.path.join(options.remote_server_directory_prefix, options.configuration)
-
+       
         remote_server_binary = os.path.join(self.remote_server_directory, options.remote_server_name)
+        
+        if options.runner == 'dotnet':
+            if platform == "win32":
+                tfm = 'net5.0-windows10.0.17763.0'
+            else:
+                tfm = 'net5.0'
+            self.remote_server_directory = os.path.join(options.remote_server_directory_prefix, options.configuration, tfm)
+            remote_server_binary = os.path.join(self.remote_server_directory, 'Renode.dll')
 
         if not os.path.isfile(remote_server_binary):
             print("Robot framework remote server binary not found: '{}'! Did you forget to build?".format(remote_server_binary))
@@ -312,7 +320,8 @@ class RobotTestSuite(object):
                 args.insert(2, '--debugger-agent=transport=dt_socket,server=y,suspend={0},address=127.0.0.1:{1}'.format('y' if options.suspend else 'n', options.port))
             elif options.debug_mode:
                 args.insert(1, '--debug')
-
+        elif options.runner == 'dotnet':
+            args.insert(0, 'dotnet')
 
         if options.run_gdb:
             args = ['gdb', '-nx', '-ex', 'handle SIGXCPU SIG33 SIG35 SIG36 SIGPWR nostop noprint', '--args'] + args
@@ -422,6 +431,8 @@ class RobotTestSuite(object):
             variables.append('HOLD_ON_ERROR:True')
         if options.execution_metrics:
             variables.append('CREATE_EXECUTION_METRICS:True')
+        if options.runner == 'dotnet':
+            variables.append('BINARY_NAME:Renode.dll')
 
         if options.variables:
             variables += options.variables
