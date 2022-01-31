@@ -16,7 +16,7 @@ PORTABLE=false
 HEADLESS=false
 SKIP_FETCH=false
 NET=false
-TFM="net5.0"
+TFM="net6.0"
 PARAMS=()
 CUSTOM_PROP=
 

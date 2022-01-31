@@ -12,7 +12,7 @@ OUTPUT_PATH="$ROOT_PATH/output/bin"
 TARGET="Release"
 QUIET=false
 NET=false
-TFM="net5.0"
+TFM="net6.0"
 
 PARAMS=()
 for ARG in "$@"
