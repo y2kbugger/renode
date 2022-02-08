@@ -22,6 +22,7 @@ ${SAVE_LOG_ON_FAIL}          True
 ${HOLD_ON_ERROR}             False
 ${CREATE_EXECUTION_METRICS}  False
 ${NET_PLATFORM}              False
+${PROFILER_PROCESS}          None
 
 *** Keywords ***
 Setup
@@ -121,7 +122,13 @@ Save Log Of Failed Test
     Log To Console     !!!!! Log saved to "${log_path}"
     Save Cached Log    ${log_path}
 
+Test Setup
+    Run Keyword If  'profiling' in @{TEST TAGS}
+    ...   Start Profiler
+
 Test Teardown
+    Stop Profiler
+
     Run Keyword If  ${CREATE_SNAPSHOT_ON_FAIL}
     ...   Run Keyword If Test Failed
           ...   Create Snapshot Of Failed Test
@@ -144,3 +151,32 @@ Test Teardown
 
 Hot Spot
     Handle Hot Spot  ${HOTSPOT_ACTION}
+
+Start Profiler Or Skip
+    Run Keyword If              not ${NET_PLATFORM}
+    ...  Fail                   Failed to run profiler. Available only for .NET platform.  skipped
+
+    Start Profiler
+
+Start Profiler
+    Run Keyword If              not ${NET_PLATFORM}
+    ...  Fail                   Failed to run profiler. Available only for .NET platform.
+
+    ${test_name}=               Set Variable  ${SUITE NAME}.${TEST NAME}
+    ${test_name}=               Replace String  ${test_name}  ${SPACE}  _
+
+    ${traces_dir}=              Set Variable  ${RESULTS_DIRECTORY}/traces
+    Create Directory            ${traces_dir}
+
+    ${trace_path}=              Set Variable  ${traces_dir}/${test_name}
+    Log To Console              !!!!! Writing nettrace to "${trace_path}.nettrace"
+    Log To Console              !!!!! Writing speedscope trace to "${trace_path}.speedscope.json"
+    # note that those logs may not be bundled with log and snapshot saving info
+
+    ${proc}=                    Start Process  dotnet  trace  collect  -p  ${RENODE_PID}  --format  Speedscope  -o  ${trace_path}.nettrace
+    Set Test Variable           ${PROGILER_PROCESS}  ${proc}
+
+Stop Profiler
+    Run Keyword If  ${PROGILER_PROCESS}  Run Keywords
+    ...         Terminate Process           ${PROGILER_PROCESS}
+    ...   AND   Set Test Variable           ${PROGILER_PROCESS}  None

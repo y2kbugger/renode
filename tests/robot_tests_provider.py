@@ -74,7 +74,7 @@ def install_cli_arguments(parser):
     parser.add_argument("--runner",
                         dest="runner",
                         action="store",
-                        default="mono" if platform.startswith("linux") or platform == "darwin" else "none",
+                        default="dotnet",
                         help=".NET runner")
 
     parser.add_argument("--debug-on-error",
@@ -207,7 +207,6 @@ class TestsFinder(robot.model.SuiteVisitor):
         else:
             self.tests_not_matching.append(test)
 
-
 class RobotTestSuite(object):
     instances_count = 0
     robot_frontend_process = None
@@ -290,7 +289,7 @@ class RobotTestSuite(object):
             if platform == "win32":
                 tfm = 'net5.0-windows10.0.17763.0'
             else:
-                tfm = 'net5.0'
+                tfm = 'net6.0'
             self.remote_server_directory = os.path.join(options.remote_server_directory_prefix, options.configuration, tfm)
             remote_server_binary = os.path.join(self.remote_server_directory, 'Renode.dll')
 
@@ -327,6 +326,7 @@ class RobotTestSuite(object):
             args = ['gdb', '-nx', '-ex', 'handle SIGXCPU SIG33 SIG35 SIG36 SIGPWR nostop noprint', '--args'] + args
 
         p = subprocess.Popen(args, cwd=self.remote_server_directory, bufsize=1)
+        self.renode_pid = p.pid
         print('Started Renode instance on port {}; pid {}'.format(options.remote_server_port + port_offset, p.pid))
         return p
 
@@ -433,6 +433,10 @@ class RobotTestSuite(object):
             variables.append('CREATE_EXECUTION_METRICS:True')
         if options.runner == 'dotnet':
             variables.append('BINARY_NAME:Renode.dll')
+            variables.append('RENODE_PID:{}'.format(self.renode_pid))
+            variables.append('NET_PLATFORM:True')
+        else:
+            options.exclude.append('profiling')
 
         if options.variables:
             variables += options.variables
