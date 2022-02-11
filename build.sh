@@ -224,6 +224,10 @@ then
       done
       rm -fr $OUTPUT_DIRECTORY/bin/$conf
     done
+    if [ -e "$TERMSHARP_PROJECT_COPY" ]
+    then
+      rm $TERMSHARP_PROJECT_COPY
+    fi
     exit 0
 fi
 
