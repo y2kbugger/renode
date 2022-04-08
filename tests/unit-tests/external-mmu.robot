@@ -56,6 +56,18 @@ Define Basic Window At
     Execute Command                 cpu SetMmuWindowPrivileges ${window_index} ${priv}
     Return From Keyword             ${window_index}
 
+Define Peripheral Window At
+    [Arguments]                     ${periph}  ${window_index}  ${start_addr}  ${end_addr}  ${addend}  ${priv}
+    ${offset}=                      Evaluate   4 * ${window_index}
+    ${start_register}=              Evaluate   0x0 + ${offset}
+    ${end_register}=                Evaluate   0x400 + ${offset}
+    ${addend_register}=             Evaluate   0x800 + ${offset}
+    ${priv_register}=               Evaluate   0xC00 + ${offset}
+    Execute Command                 ${periph} WriteDoubleWord ${start_register} ${start_addr}
+    Execute Command                 ${periph} WriteDoubleWord ${end_register} ${end_addr}
+    Execute Command                 ${periph} WriteDoubleWord ${addend_register} ${addend}
+    Execute Command                 ${periph} WriteDoubleWord ${priv_register} ${priv}
+
 *** Test Cases ***
 Setting MMU Window Parameters Before Enabling Logs Error
     Create Platform
@@ -171,3 +183,77 @@ Fault Callback Works When Enabled
     Expect Value Read From Address  0x1100  0x0
 
     Wait For Log Entry              External MMU fault at 0x1100
+
+Peripheral Can Be Attached To The Sysbus
+    Create Platform
+    Execute Command                 machine LoadPlatformDescriptionFromString "mmu1: Miscellaneous.ExternalWindowMMU @ sysbus 0x47000000 {cpu: cpu; startAddress: 0x0; windowSize: 0x1000; numberOfWindows: 4}"
+    Provides                        SingleMMU
+
+Peripheral Can Be Configured Using The Registers Inteface
+    Requires                        SingleMMU
+    Define Peripheral Window At     mmu1  0  0x10000  0x11000  0x1000  ${PRIV_ALL}
+    Execute Command                 sysbus WriteWord 0x10000 0xFFFF
+    Execute Command                 sysbus WriteWord 0x11000 0x0124
+    Expect Value Read From Address  0x10000  0x0124
+
+Peripheral Throws Fault On Illegal Data Access
+    Requires                        SingleMMU
+    Define Peripheral Window At     mmu1  0  0x0000  0x1000  0x0000  ${PRIV_ALL}       # The insnOnly MMU
+    Define Peripheral Window At     mmu1  0  0x1000  0x2000  0x0000  ${PRIV_NONE}      # The insnOnly MMU
+    Execute Command                 logLevel -1 mmu1
+
+    Expect Value Read From Address  0x1000  0x0
+    Wait For Log Entry              mmu1: MMU fault occured
+
+Peripheal Throws On Illegal Insn Fetch
+    Requires                        SingleMMU
+    Define Peripheral Window At     mmu1  0  0x0000  0x1000  0x0000  ${PRIV_NONE}      # The insnOnly MMU
+    Execute Command                 logLevel -1 mmu1
+
+    Expect Value Read From Address  0x2000  0x0
+    Wait For Log Entry              mmu1: MMU fault occured
+
+CPU Cannot Have Two MMUs Of The Same Type
+    Create Platform
+    Execute Command                 machine LoadPlatformDescriptionFromString "mmu1: Miscellaneous.ExternalWindowMMU @ sysbus 0x47000000 {cpu: cpu; startAddress: 0x0; windowSize: 0x1000; numberOfWindows: 4; type: CPU.MmuType.InstructionsOnly}"
+    Run Keyword And Expect Error    *Error E38: Exception was thrown during construction of 'mmu2'*Trying to attach second MMU of the same type 'InstructionsOnly'*
+    ...  Execute Command            machine LoadPlatformDescriptionFromString "mmu2: Miscellaneous.ExternalWindowMMU @ sysbus 0x47001000 {cpu: cpu; startAddress: 0x1000; windowSize: 0x1000; numberOfWindows: 4; type: CPU.MmuType.InstructionsOnly}"
+
+CPU Can Have Two MMUs of Different Type
+    Create Platform
+    Execute Command                 logLevel -1
+    Execute Command                 machine LoadPlatformDescriptionFromString "mmu1: Miscellaneous.ExternalWindowMMU @ sysbus 0x47000000 {cpu: cpu; startAddress: 0x0; windowSize: 0x1000; numberOfWindows: 1; type: CPU.MmuType.InstructionsOnly}"
+    Execute Command                 machine LoadPlatformDescriptionFromString "mmu2: Miscellaneous.ExternalWindowMMU @ sysbus 0x47001000 {cpu: cpu; startAddress: 0x1000; windowSize: 0x1000; numberOfWindows: 1}"
+    Provides                        TwoMmus
+
+InsnOnly MMU Cannot Have a Privileges Other Than The Execution
+    Requires                        TwoMmus
+    Create Log Tester               0.0002
+    Define Peripheral Window At     mmu1  0  0x1000  0x2000  0x1000  ${PRIV_ALl}
+    Wait For log Entry              This MMU type cannot set other privileges then the Execution
+
+On Two Mmus Setup Only The Normal IRQ Is Fired On Illegal Data Read
+    Requires                        TwoMmus
+    Define Peripheral Window At     mmu2  0  0x2000  0x3000  0x1000  ${PRIV_WRITE_ONLY} # Normal mmu
+    Create Log Tester               0.0005
+    Execute Command                 logLevel -1 mmu1
+    Execute Command                 logLevel -1 mmu2
+
+    # Normal mmu fault
+    Execute Command                 sysbus WriteWord 0x3000 0x0124
+    Expect Value Read From Address  0x2000  0x0
+    Wait For Log Entry              mmu2: MMU fault occured
+    Should Not Be In Log            mmu1: MMU fault occured
+
+On Two Mmus Setup Only The InsnOnly IRQ Is Fired On Illegal Insn Fetch
+    Requires                        TwoMmus
+    Define Peripheral Window At     mmu1  0  0x0000  0x1000  0x0000  ${PRIV_NONE}       # The insnOnly MMU
+    Create Log Tester               0.0005
+    Execute Command                 logLevel -1 mmu1
+    Execute Command                 logLevel -1 mmu2
+
+    # InsnOnly mmu fault
+    Expect Value Read From Address  0x2000  0x0
+    Wait For Log Entry              mmu1: MMU fault occured
+    Should Not Be In Log            mmu2: MMU fault occured
+
