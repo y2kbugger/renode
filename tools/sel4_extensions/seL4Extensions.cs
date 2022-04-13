@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Debug
 {
     public static class SeL4Extensions
     {
-        public static void CreateSeL4(this ICpuSupportingGdb @this)
+        public static void CreateSeL4(this ICPUSupportingGdb @this)
         {
             EmulationManager.Instance.CurrentEmulation.ExternalsManager.AddExternal(new SeL4DebugHelper(@this), "seL4");
         }
@@ -28,7 +28,7 @@ namespace Antmicro.Renode.Debug
 
     public class SeL4DebugHelper : IExternal
     {
-        public SeL4DebugHelper(ICpuSupportingGdb cpu)
+        public SeL4DebugHelper(ICPUSupportingGdb cpu)
         {
             if(cpu is Arm)
             {
@@ -207,7 +207,7 @@ namespace Antmicro.Renode.Debug
 
         public bool Ready { get; private set; }
 
-        private void HandleUnknownSyscall(ICpuSupportingGdb cpu, ulong address)
+        private void HandleUnknownSyscall(ICPUSupportingGdb cpu, ulong address)
         {
             // Check if seL4_DebugThreadName was called
             if((callingConvention.FirstArgument & 0xFFFFFFFF) != DebugThreadNameSyscall)
@@ -237,14 +237,14 @@ namespace Antmicro.Renode.Debug
             cpu.AddHook(lookupIPCBufferAddress, HandleLookupIPCBuffer);
         }
 
-        private void Finalize(ICpuSupportingGdb cpu, ulong address)
+        private void Finalize(ICPUSupportingGdb cpu, ulong address)
         {
             cpu.RemoveHook(address, Finalize);
             Ready = true;
             this.Log(LogLevel.Info, "Initialization complete.");
         }
 
-        private void HandleRestoreUserContext(ICpuSupportingGdb cpu, ulong address)
+        private void HandleRestoreUserContext(ICPUSupportingGdb cpu, ulong address)
         {
             var threadName = CurrentThreadUnsafe();
             if(!DoBreakpointExists(WildcardAddress, threadName))
@@ -270,7 +270,7 @@ namespace Antmicro.Renode.Debug
             cpu.AddHook(pc, HandleThreadSwitch);
         }
 
-        private void HandleThreadSwitch(ICpuSupportingGdb cpu, ulong address)
+        private void HandleThreadSwitch(ICPUSupportingGdb cpu, ulong address)
         {
             UpdateExitUserspaceBreakpoint();
 
@@ -283,7 +283,7 @@ namespace Antmicro.Renode.Debug
             cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.MemoryBreakpoint), true);
         }
 
-        private void HandleBreakpoint(ICpuSupportingGdb cpu, ulong address)
+        private void HandleBreakpoint(ICPUSupportingGdb cpu, ulong address)
         {
             UpdateExitUserspaceBreakpoint();
 
@@ -298,7 +298,7 @@ namespace Antmicro.Renode.Debug
             cpu.EnterSingleStepModeSafely(new HaltArguments(HaltReason.Breakpoint, cpu.Id, address, BreakpointType.MemoryBreakpoint), true);
         }
 
-        private void HandleExitUserspace(ICpuSupportingGdb cpu, ulong address)
+        private void HandleExitUserspace(ICPUSupportingGdb cpu, ulong address)
         {
             if(callingConvention.PrivilegeMode != PrivilegeMode.Supervisor)
             {
@@ -317,14 +317,14 @@ namespace Antmicro.Renode.Debug
             }
         }
 
-        private void HandleLookupCapAndSlotAddress(ICpuSupportingGdb cpu, ulong address)
+        private void HandleLookupCapAndSlotAddress(ICPUSupportingGdb cpu, ulong address)
         {
             // Save address to instruction in handleUnknownSyscall after call to lookupCapAndSlot
             cpu.RemoveHook(address, HandleLookupCapAndSlotAddress);
             cpu.AddHook(callingConvention.ReturnAddress, HandlePostLookupCapAndSlotAddress);
         }
 
-        private void HandlePostLookupCapAndSlotAddress(ICpuSupportingGdb cpu, ulong address)
+        private void HandlePostLookupCapAndSlotAddress(ICPUSupportingGdb cpu, ulong address)
         {
             // Return value of lookupCapAndSlot is a structure
             // with size of two machine words. We are interested in second value
@@ -335,14 +335,14 @@ namespace Antmicro.Renode.Debug
             currentTCB = underlying & 0xffffffffffffff00;
         }
 
-        private void HandleLookupIPCBuffer(ICpuSupportingGdb cpu, ulong address)
+        private void HandleLookupIPCBuffer(ICPUSupportingGdb cpu, ulong address)
         {
             // Save address to instruction in handleUnknownSyscall after call to lookupIPCBuffer
             cpu.RemoveHook(address, HandleLookupIPCBuffer);
             cpu.AddHook(callingConvention.ReturnAddress, HandlePostLookupIPCBuffer);
         }
 
-        private void HandlePostLookupIPCBuffer(ICpuSupportingGdb cpu, ulong address)
+        private void HandlePostLookupIPCBuffer(ICPUSupportingGdb cpu, ulong address)
         {
             // In A0 register address to IPC buffer is returned.
             // As seL4_DebugThreadName saves pointer to the string in IPC buffer,
@@ -555,7 +555,7 @@ namespace Antmicro.Renode.Debug
         private readonly Dictionary<ulong, HashSet<string>> breakpoints;
         private readonly Dictionary<ulong, HashSet<string>> temporaryBreakpoints;
         private readonly Dictionary<ulong, string> mapping;
-        private readonly ICpuSupportingGdb cpu;
+        private readonly ICPUSupportingGdb cpu;
         private readonly ICallingConvention callingConvention;
 
         private bool exitUserspacePending;
@@ -586,7 +586,7 @@ namespace Antmicro.Renode.Debug
 
         private class RiscVCallingConvention : ICallingConvention
         {
-            public RiscVCallingConvention(ICpuSupportingGdb cpu)
+            public RiscVCallingConvention(ICPUSupportingGdb cpu)
             {
                 this.cpu = cpu;
             }
@@ -616,7 +616,7 @@ namespace Antmicro.Renode.Debug
 
         private class ArmCallingConvention : ICallingConvention
         {
-            public ArmCallingConvention(ICpuSupportingGdb cpu)
+            public ArmCallingConvention(ICPUSupportingGdb cpu)
             {
                 this.cpu = (Arm)cpu;
                 // Assumes that symbols for kernel are loaded
