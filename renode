@@ -11,6 +11,7 @@ OUTPUT_PATH="$ROOT_PATH/output/bin"
 
 TARGET="Release"
 QUIET=false
+TRACE=false
 NET=false
 TFM="net6.0"
 
@@ -31,12 +32,51 @@ do
     --net)
         NET=true
         ;;
+    --trace)
+        TRACE=true
+        TRACE_FORMAT=${2:-}
+        case $TRACE_FORMAT in
+            Chromium|chromium)
+                TRACE_FORMAT="Chromium"
+                shift
+                ;;
+            Speedscope|speedscope)
+                TRACE_FORMAT="Speedscope"
+                shift
+                ;;
+            Nettrace|nettrace)
+                TRACE_FORMAT="Nettrace"
+                shift
+                ;;
+            *)
+                # No format specified - use default, don't shift argument list
+                TRACE_FORMAT="Nettrace"
+                ;;
+        esac
+        ;;
     *)
         PARAMS+=("$1")
         ;;
     esac
     shift
 done
+
+if ! $NET && $TRACE
+then
+    echo "Tracing is available only on the dotnet target"
+    exit 1
+fi
+
+if [ "$TARGET" == "Release" ] && $TRACE
+then
+    echo "Tracing is available only with the debug target"
+    exit 1
+fi
+
+if $ON_WINDOWS && $TRACE
+then
+    echo "Tracing is not avaiable on Windows platform"
+fi
 
 if ! $ON_WINDOWS && ! $NET
 then
@@ -61,7 +101,13 @@ then
         TFM="net5.0-windows10.0.17763.0"
         "${OUTPUT_PATH}/${TARGET}/${TFM}/Renode.exe" "${PARAMS[@]:-}"
     else
-        dotnet "${OUTPUT_PATH}/${TARGET}/${TFM}/Renode.dll" "${PARAMS[@]:-}"
+        if ! $TRACE
+        then
+        	TRACE_COMMAND=""
+        else
+        	TRACE_COMMAND="dotnet-trace collect --format ${TRACE_FORMAT} --"
+		fi
+        ${TRACE_COMMAND} dotnet "${OUTPUT_PATH}/${TARGET}/${TFM}/Renode.dll" "${PARAMS[@]:-}"
     fi
 else
     if $ON_WINDOWS
