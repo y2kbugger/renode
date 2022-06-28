@@ -15,24 +15,27 @@ NET=false
 TFM="net6.0"
 
 PARAMS=()
-for ARG in "$@"
+while [[ "$#" -gt 0 ]]
 do
-    if [ "$ARG" == "-d" ]
-    then
+    case $1 in
+    -d|--debug)
         TARGET="Debug"
         if $ON_LINUX
         then
             LAUNCHER="$LAUNCHER --debug"
         fi
-    elif [ "$ARG" == "-q" ]
-    then
+        ;;
+    -q|--quiet)
         QUIET=true
-    elif [ "$ARG" == "--net" ]
-    then
+        ;;
+    --net)
         NET=true
-    else
-        PARAMS+=("$ARG")
-    fi
+        ;;
+    *)
+        PARAMS+=("$1")
+        ;;
+    esac
+    shift
 done
 
 if ! $ON_WINDOWS && ! $NET
