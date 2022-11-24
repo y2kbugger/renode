@@ -20,7 +20,7 @@ namespace Antmicro.Renode.Peripherals.Verilated
 {
     public class VerilatedPeripheral : BaseVerilatedPeripheral, IQuadWordPeripheral, IDoubleWordPeripheral, IWordPeripheral, IBytePeripheral, IBusPeripheral, IDisposable, IHasOwnLife, INumberedGPIOOutput, IAbsoluteAddressAware
     {
-        public VerilatedPeripheral(Machine machine, int maxWidth, long frequency = VerilogTimeunitFrequency, string simulationFilePathLinux = null, string simulationFilePathWindows = null, string simulationFilePathMacOS = null,
+        public VerilatedPeripheral(Machine machine, uint maxWidth, long frequency = VerilogTimeunitFrequency, string simulationFilePathLinux = null, string simulationFilePathWindows = null, string simulationFilePathMacOS = null,
             ulong limitBuffer = LimitBuffer, int timeout = DefaultTimeout, string address = null, int numberOfInterrupts = 0)
             : base(simulationFilePathLinux, simulationFilePathWindows, simulationFilePathMacOS, timeout, address)
         {
@@ -211,6 +211,11 @@ namespace Antmicro.Renode.Peripherals.Verilated
                 this.Log(LogLevel.Warning, "Cannot write to peripheral. Set SimulationFilePath or connect to a simulator first!");
                 return;
             }
+            if(!alignmentInitialized)
+            {
+                alignmentInitialized = true;
+                Send(ActionType.SetAccessAlignment, 0, maxWidth);
+            }
             Send(type, UseAbsoluteAddress ? absoluteAddress : (ulong)offset, value);
             CheckValidation(Receive());
         }
@@ -221,6 +226,11 @@ namespace Antmicro.Renode.Peripherals.Verilated
             {
                 this.Log(LogLevel.Warning, "Cannot read from peripheral. Set SimulationFilePath or connect to a simulator first!");
                 return 0;
+            }
+            if(!alignmentInitialized)
+            {
+                alignmentInitialized = true;
+                Send(ActionType.SetAccessAlignment, 0, maxWidth);
             }
             Send(type, UseAbsoluteAddress ? absoluteAddress : (ulong)offset, 0);
             var result = Receive();
@@ -240,8 +250,11 @@ namespace Antmicro.Renode.Peripherals.Verilated
             connection.Set(interrupt.Data != 0);
         }
 
+        // does not need to be reset, as width is effectively a constructor parameter
+        private bool alignmentInitialized;
+
         protected readonly Machine machine;
-        protected readonly int maxWidth;
+        protected readonly uint maxWidth;
 
         protected const ulong LimitBuffer = 1000000;
 
