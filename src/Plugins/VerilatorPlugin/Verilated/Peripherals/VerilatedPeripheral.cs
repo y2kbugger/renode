@@ -61,7 +61,7 @@ namespace Antmicro.Renode.Peripherals.Verilated
 
         public virtual byte ReadByte(long offset)
         {
-            if(!VerifyLength(8, offset))
+            if(!VerifyLength(1, offset))
             {
                 return 0;
             }
@@ -70,7 +70,7 @@ namespace Antmicro.Renode.Peripherals.Verilated
 
         public virtual ushort ReadWord(long offset)
         {
-            if(!VerifyLength(16, offset))
+            if(!VerifyLength(2, offset))
             {
                 return 0;
             }
@@ -79,7 +79,7 @@ namespace Antmicro.Renode.Peripherals.Verilated
 
         public virtual uint ReadDoubleWord(long offset)
         {
-            if(!VerifyLength(32, offset))
+            if(!VerifyLength(4, offset))
             {
                 return 0;
             }
@@ -88,7 +88,7 @@ namespace Antmicro.Renode.Peripherals.Verilated
 
         public virtual ulong ReadQuadWord(long offset)
         {
-            if(!VerifyLength(64, offset))
+            if(!VerifyLength(8, offset))
             {
                 return 0;
             }
@@ -97,7 +97,7 @@ namespace Antmicro.Renode.Peripherals.Verilated
 
         public virtual void WriteByte(long offset, byte value)
         {
-            if(VerifyLength(8, offset, value))
+            if(VerifyLength(1, offset, value))
             {
                 Write(ActionType.WriteToBusByte, offset, value);
             }
@@ -105,7 +105,7 @@ namespace Antmicro.Renode.Peripherals.Verilated
 
         public virtual void WriteWord(long offset, ushort value)
         {
-            if(VerifyLength(16, offset, value))
+            if(VerifyLength(2, offset, value))
             {
                 Write(ActionType.WriteToBusWord, offset, value);
             }
@@ -113,7 +113,7 @@ namespace Antmicro.Renode.Peripherals.Verilated
 
         public virtual void WriteDoubleWord(long offset, uint value)
         {
-            if(VerifyLength(32, offset, value))
+            if(VerifyLength(4, offset, value))
             {
                 Write(ActionType.WriteToBusDoubleWord, offset, value);
             }
@@ -121,7 +121,7 @@ namespace Antmicro.Renode.Peripherals.Verilated
 
         public virtual void WriteQuadWord(long offset, ulong value)
         {
-            if(VerifyLength(64, offset, value))
+            if(VerifyLength(8, offset, value))
             {
                 Write(ActionType.WriteToBusQuadWord, offset, value);
             }
